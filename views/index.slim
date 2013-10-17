@@ -1,0 +1,382 @@
+doctype html
+html lang="en"
+  head
+    meta charset="utf-8"
+    title Rails 3 &#8594; 4
+    link href="reveal/css/reveal.min.css" rel="stylesheet"
+    link href="reveal/css/theme/night.css" rel="stylesheet"
+    link href="reveal/lib/css/zenburn.css" rel="stylesheet"
+    link href='http://fonts.googleapis.com/css?family=Roboto+Slab:400,700,300' rel='stylesheet' type='text/css'
+    link href="theme_override.css" rel="stylesheet"
+  body
+    .reveal
+      .slides
+        section
+          h1 Rails 3 &#8594; 4
+          p It's not as bad as 2 &#8594; 3.
+
+        section
+          h2 Roadblocks
+          hr
+          p Most of your problems upgrading are going to lie in your own application's dependencies.
+          br
+          ul
+            li Rails' internal API changes
+            li Library API changes
+
+        section
+          h2 Ruby
+          hr
+          ul
+            li 1.8 is no longer supported
+            li 1.9.3+ is required
+            li 2.0 is preferred
+
+        section
+          h2 Plugins
+          hr
+          markdown:
+            * Rails 3.2 deprecates `vendor/plugins`
+            * Rails 4.0 removes support completely
+          br
+          br  
+          p Move them to `lib` or extract them to standalone gems.
+
+        section
+          h2 Tests
+          hr
+          p Get your test suite in order first.
+          small You do have one right?
+
+        section
+          h2 Rails 3.2
+          hr
+          p If you're on anyting below Rails 3.2, get there first.
+          p As of today, Rails is 3.x is at 3.2.15.
+          
+        section
+          h2 Gemfile
+          hr
+          p Rails 4 removes the 'assets' group from your Gemfile.
+
+        section
+          h4
+            code config/application.rb
+          hr
+          pre
+            code.ruby data-trim=true
+              | if defined?(Bundler)
+                  # If you precompile assets before deploying to production, use this line
+                  Bundler.require(*Rails.groups(:assets => %w(development test)))
+                  # If you want your assets lazily compiled in production, use this line
+                  # Bundler.require(:default, :assets, Rails.env)
+                end
+          p &#8595;
+
+          pre
+            code.ruby data-trim=true
+              | # Require the gems listed in Gemfile, including any gems
+                # you've limited to :test, :development, or :production.
+                Bundler.require(:default, Rails.env)
+
+        section
+          h2 ActiveRecord
+
+        section
+          h3 Identity Map
+          hr
+          p Gone.
+
+          pre
+            code.ruby data-trim=true
+              | config.active_record.identity_map = true
+
+          small This wasn't enabled by default, but if you forced it on, you'll need to remove this line.
+
+        section
+          h3 Strong Parameters
+          hr
+          markdown:
+            `attr_accessible` and `attr_protected` have been removed from `ActiveRecord`.
+
+          small The legacy feature has been moved to a gem if you aren't ready to migrate to strong parameters yet.
+                
+        section
+          h3 Scopes
+          hr
+          pre
+            code.ruby data-trim=true
+              | scope :active, where(active: true)
+          p &#8595;
+          pre
+            code.ruby data-trim=true
+              | scope :active, -> { where active: true }
+          small Require being wrapping in a callable object.
+
+        section
+          h3 Dynamic Finders
+          hr
+          p Deprecated.
+          pre
+            code.ruby data-trim=true
+              | Thing.find_or_initialize_by_color_and_shape('red', 'square')
+          p &#8595;
+          pre
+            code.ruby data-trim=true
+              | Thing.find_or_initialize_by(:color => 'red', :shape => 'square')
+        section
+          h3 Cool New Stuff
+          hr
+          pre
+            code.ruby data-trim=true
+              | @post.update_attributes(title: 'Black is the new Red!')
+          p &#8595;
+          pre
+            code.ruby data-trim=true
+              | @post.update(title: 'Orange is the new Black!')
+          br
+          pre
+            code.ruby data-trim=true
+              | Post.where.not(title: '23 things to do that will get us 22 extra page views!')
+          pre
+            code.ruby data-trim=true
+              | Post.none
+
+        section
+          h2 ActiveResource
+          hr
+          p Not included in Rails core anymore.
+        
+        section
+          h2 JSON Serialization
+          hr
+          p This is now the default without needing to be explicitly set.
+          pre
+            code.ruby data-trim=true
+              | ActiveSupport.on_load(:active_record) do
+                  self.include_root_in_json = false
+                end
+          small This has been part of default initializers since Rails 2.3-ish.
+
+        section
+          h2 Cookies
+          hr
+          pre
+            code.ruby data-trim=true
+              | Blog::Application.config.secret_token = '34f12eefeff8d487aa...'
+          p &#8595;
+          pre
+            code.ruby data-trim=true
+              | Blog::Application.config.secret_key_base = '547783af21820ec998...'              
+          small or
+          pre
+            code.ruby data-trim=true
+              | Blog::Application.config.secret_token = '34f12eefeff8d487aa...'
+                Blog::Application.config.secret_key_base = '547783af21820ec998...'
+          small Transparently update existing cookies without invalidating them.
+
+        section
+          h2 Routes
+          hr
+          pre
+            code.ruby data-trim=true
+              | match "/" => "root#index"
+          p &#8595;
+          pre
+            code.ruby data-trim=true
+              | match "/" => "root#index", via: :get
+
+          p Also 'patch' as a replacement for 'put', but it's not required for upgrading.
+
+        section
+          h2 Old Scaffolding
+          hr
+          pre
+            code.ruby data-trim=true
+              | class PostsController < ApplicationController
+                  # GET /posts
+                  # GET /posts.json
+                  def index
+                    @posts = Post.all
+
+                    respond_to do |format|
+                      format.html # index.html.erb
+                      format.json { render json: @posts }
+                    end
+                  end
+
+                  # GET /posts/1
+                  # GET /posts/1.json
+                  def show
+                    @post = Post.find(params[:id])
+
+                    respond_to do |format|
+                      format.html # show.html.erb
+                      format.json { render json: @post }
+                    end
+                  end
+
+                  # GET /posts/new
+                  # GET /posts/new.json
+                  def new
+                    @post = Post.new
+
+                    respond_to do |format|
+                      format.html # new.html.erb
+                      format.json { render json: @post }
+                    end
+                  end
+
+                  # GET /posts/1/edit
+                  def edit
+                    @post = Post.find(params[:id])
+                  end
+
+                  # POST /posts
+                  # POST /posts.json
+                  def create
+                    @post = Post.new(params[:post])
+
+                    respond_to do |format|
+                      if @post.save
+                        format.html { redirect_to @post, notice: 'Post was successfully created.' }
+                        format.json { render json: @post, status: :created, location: @post }
+                      else
+                        format.html { render action: "new" }
+                        format.json { render json: @post.errors, status: :unprocessable_entity }
+                      end
+                    end
+                  end
+
+                  # PUT /posts/1
+                  # PUT /posts/1.json
+                  def update
+                    @post = Post.find(params[:id])
+
+                    respond_to do |format|
+                      if @post.update_attributes(params[:post])
+                        format.html { redirect_to @post, notice: 'Post was successfully updated.' }
+                        format.json { head :ok }
+                      else
+                        format.html { render action: "edit" }
+                        format.json { render json: @post.errors, status: :unprocessable_entity }
+                      end
+                    end
+                  end
+
+                  # DELETE /posts/1
+                  # DELETE /posts/1.json
+                  def destroy
+                    @post = Post.find(params[:id])
+                    @post.destroy
+
+                    respond_to do |format|
+                      format.html { redirect_to posts_url }
+                      format.json { head :ok }
+                    end
+                  end
+                end
+              
+        section
+          h2 New Scaffolding
+          hr
+          pre
+            code.ruby data-trim=true
+              | class PostsController < ApplicationController
+                  before_action :set_post, only: [:show, :edit, :update, :destroy]
+                
+                  # GET /posts
+                  # GET /posts.json
+                  def index
+                    @posts = Post.all
+                  end
+                
+                  # GET /posts/1
+                  # GET /posts/1.json
+                  def show
+                  end
+                
+                  # GET /posts/new
+                  def new
+                    @post = Post.new
+                  end
+
+                  # GET /posts/1/edit
+                  def edit
+                  end
+
+                  # POST /posts
+                  # POST /posts.json
+                  def create
+                    @post = Post.new(post_params)
+
+                    respond_to do |format|
+                      if @post.save
+                        format.html { redirect_to @post, notice: 'Post was successfully created.' }
+                        format.json { render action: 'show', status: :created, location: @post }
+                      else
+                        format.html { render action: 'new' }
+                        format.json { render json: @post.errors, status: :unprocessable_entity }
+                      end
+                    end
+                  end
+
+                  # PATCH/PUT /posts/1
+                  # PATCH/PUT /posts/1.json
+                  def update
+                    respond_to do |format|
+                      if @post.update(post_params)
+                        format.html { redirect_to @post, notice: 'Post was successfully updated.' }
+                        format.json { head :no_content }
+                      else
+                        format.html { render action: 'edit' }
+                        format.json { render json: @post.errors, status: :unprocessable_entity }
+                      end
+                    end
+                  end
+
+                  # DELETE /posts/1
+                  # DELETE /posts/1.json
+                  def destroy
+                    @post.destroy
+                    respond_to do |format|
+                      format.html { redirect_to posts_url }
+                      format.json { head :no_content }
+                    end
+                  end
+                
+                  private
+                    # Use callbacks to share common setup or constraints between actions.
+                    def set_post
+                      @post = Post.find(params[:id])
+                    end
+                
+                    # Never trust parameters from the scary internet, only allow the white list through.
+                    def post_params
+                      params.require(:post).permit(:title, :body)
+                    end
+                end
+          small with Strong Parameters
+        section
+          h2 More
+          hr
+          markdown:
+            Checkout the [Rails Guide](http://guides.rubyonrails.org/upgrading_ruby_on_rails.html) on upgrading.
+
+    script src="reveal/lib/js/head.min.js"
+    script src="reveal/js/reveal.min.js"
+    javascript:
+      Reveal.initialize({
+        controls: false,
+        progress: true,
+        history: true,
+        center: true,
+        // available themes are in /css/theme
+        // theme: Reveal.getQueryHash().theme,
+        // default/cube/page/concave/zoom/linear/none
+        transition: 'concave',
+        // Optional libraries used to extend on reveal.js
+        dependencies: [
+          { src: 'reveal/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+        ]
+      });
